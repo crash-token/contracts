@@ -599,4 +599,5 @@ contract CrashRoyale is Context, IBEP20, Ownable {
 		_allowances[owner][spender] = amount;
 		emit Approval(owner, spender, amount);
 	}
+    
 }
