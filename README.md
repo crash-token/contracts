@@ -1,1 +1,1 @@
-# crash-royale-contract
+# crash-token-contract
