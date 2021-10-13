@@ -1,1 +1,0 @@
-# crash-token-contract
