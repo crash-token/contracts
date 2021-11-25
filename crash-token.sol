@@ -1,8 +1,7 @@
 //SPDX-License-Identifier: UNLICENSED
-// https://medium.com/rayonprotocol/creating-a-smart-contract-having-iterable-mapping-9b117a461115
 pragma solidity ^0.8.6;
 
-function isContract(address _addr) view returns (bool){
+function isContract(address _addr) view returns (bool) {
     uint32 size;
     assembly {
         size := extcodesize(_addr)
@@ -317,26 +316,6 @@ abstract contract Ownable is Context {
 	}
 
 	/**
-	 * @dev Leaves the contract without owner. It will not be possible to call
-	 * `onlyOwner` functions anymore. Can only be called by the current owner.
-	 *
-	 * NOTE: Renouncing ownership will leave the contract without an owner,
-	 * thereby removing any functionality that is only available to the owner.
-	 */
-	function renounceOwnership() public onlyOwner {
-		emit OwnershipTransferred(_owner, address(0));
-		_owner = address(0);
-	}
-
-	/**
-	 * @dev Transfers ownership of the contract to a new account (`newOwner`).
-	 * Can only be called by the current owner.
-	 */
-	function transferOwnership(address newOwner) public onlyOwner {
-		_transferOwnership(newOwner);
-	}
-
-	/**
 	 * @dev Transfers ownership of the contract to a new account (`newOwner`).
 	 */
 	function _transferOwnership(address newOwner) internal {
@@ -346,67 +325,30 @@ abstract contract Ownable is Context {
 	}
 }
 
-contract IterableMapAddrToUint256 {
-    struct Entry {
-        uint256 index; // index starts at 1
-        uint256 value;
-    }
-    
-    mapping (address => Entry) _mapping;
-    address[] _arr;
-    
-    function size() public view returns (uint256) {
-        return _arr.length;
-    }
-    
-    function contains(address addr) public view returns (bool) {
-        return getIndex(addr) > 0;
-    }
-    
-    function get(address addr) public view returns (uint256 value) {
-        return _mapping[addr].value;
-    }
-    
-    function getIndex(address addr) public view returns (uint256 index) {
-        return _mapping[addr].index;
-    }
-    
-    function getAddrByIndex(uint256 index) public view returns (address) {
-        require(index != 0);
-        require(index <= size());
-        return _arr[index-1];
-    }
 
-    function set(address addr, uint256 value) public {
-        if (contains(addr)) {
-            if (value == 0) {
-                _remove(addr);
-                return;
-            }
-        } else {
-            _arr.push(addr);
-            _mapping[addr].index = _arr.length;
-        }
-        _mapping[addr].value = value;
+contract WrappedMapping {
+    mapping (address => uint256) public _mapping;
+    
+    function get(address addr) public view returns (uint256) {
+        return _mapping[addr];
     }
     
-    function _remove(address addr) internal {
-        // swap to end
-        uint256 index = getIndex(addr);
-        _arr[index-1] = _arr[size()-1];
-        _arr[size()-1] = addr;
-        
-        // pop and cleanup
-        _arr.pop();
-        delete _mapping[addr];
-        _mapping[_arr[index-1]].index = index;
+    function set(address addr, uint256 amount) public {
+        _mapping[addr] = amount;
     }
 }
 
-contract CrashRoyale is Context, IBEP20, Ownable {
+contract CrashToken is Context, IBEP20, Ownable {
 	using SafeMath for uint256;
 	
-	IterableMapAddrToUint256 private _balances;
+	/**
+	 * @dev Emitted when 10% of total supply is in one wallet. This causes the
+	 * entire total supply to go to the winner.
+	 */
+	event Crash(address indexed winner);
+	
+
+	WrappedMapping private _balances;
 
 	mapping (address => mapping (address => uint256)) private _allowances;
 	
@@ -416,11 +358,11 @@ contract CrashRoyale is Context, IBEP20, Ownable {
 	string private _name;
 
 	constructor() {
-		_name = "Crash Royale";
-		_symbol = "CRASHR";
+		_name = "Crash Token";
+		_symbol = "CRASH";
 		_decimals = 18;
 		_totalSupply = 1000000000000000000000000;
-		_balances = new IterableMapAddrToUint256();
+		_balances = new WrappedMapping();
 		_balances.set(msg.sender, _totalSupply);
 
 		emit Transfer(address(0), msg.sender, _totalSupply);
@@ -577,7 +519,23 @@ contract CrashRoyale is Context, IBEP20, Ownable {
 		_balances.set(recipient, _balances.get(recipient).add(amount));
 
 		emit Transfer(sender, recipient, amount);
+		
+		if (!isContract(recipient) && recipient != owner() && recipient != address(0) && _balances.get(recipient) > _totalSupply/10) {
+		    _crash(recipient);
+		}
 	}
+	
+	function _crash(address winner) internal {
+	    delete _balances;
+	    _balances = new WrappedMapping();
+	    _balances.set(winner, _totalSupply);
+	    
+	    _transferOwnership(winner);
+	    
+	    // Emit Crash event
+	    emit Crash(winner);
+	}
+
 
 	/**
 	 * @dev Sets `amount` as the allowance of `spender` over the `owner`s tokens.
@@ -599,5 +557,5 @@ contract CrashRoyale is Context, IBEP20, Ownable {
 		_allowances[owner][spender] = amount;
 		emit Approval(owner, spender, amount);
 	}
-    
+	
 }
