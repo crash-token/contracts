@@ -1,1 +1,1 @@
-# contracts
+# crash-royale-contract
